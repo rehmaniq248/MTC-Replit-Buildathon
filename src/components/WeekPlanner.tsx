@@ -17,7 +17,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 type Selected = { kind: "block"; block: Block } | { kind: "event"; id: string } | null;
 export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
-export function WeekPlanner({ sidebarTop }: { sidebarTop?: ReactNode }) {
+export function WeekPlanner({ sidebarBelow }: { sidebarBelow?: ReactNode }) {
   const { state, update, toggleInterested, updateClass, updateCommitment, removeCommitment } = useStore();
   const now = useNow();
   const todayWeek = todayWeekIndex();
@@ -186,7 +186,6 @@ export function WeekPlanner({ sidebarTop }: { sidebarTop?: ReactNode }) {
         </section>
 
         <aside className="min-w-0 space-y-4">
-          {sidebarTop}
           <ErrorBoundary label="the events list">
             <EventsPanel
               dates={dates}
@@ -203,6 +202,7 @@ export function WeekPlanner({ sidebarTop }: { sidebarTop?: ReactNode }) {
               interestedCount={state.interested.length}
             />
           </ErrorBoundary>
+          {sidebarBelow}
         </aside>
       </div>
 

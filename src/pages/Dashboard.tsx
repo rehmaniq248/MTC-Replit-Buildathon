@@ -11,7 +11,7 @@ export default function Dashboard() {
           <PrayerTimeline compact />
         </Glass>
         <div className="mt-4">
-          <WeekPlanner sidebarTop={<><TasksWidget /><RemindersWidget /></>} />
+          <WeekPlanner sidebarBelow={<><TasksWidget /><RemindersWidget /></>} />
         </div>
       </div>
     </div>
