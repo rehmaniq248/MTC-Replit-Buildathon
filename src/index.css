@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { min-height: 100%; }
+body { background: #0B1426; color: #F2F0E9; font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif; }
+:focus-visible { outline: 2px solid #FFCD00; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+[role="dialog"]:focus-visible { outline: none; }
