@@ -50,7 +50,7 @@ export function EventsPanel(p: PanelProps) {
       </div>
       <label className="mt-2 flex items-center gap-2 text-xs text-muted">
         Show
-        <select value={p.filter} onChange={(e) => p.setFilter(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-navy px-2 py-1.5 text-sm text-ink">
+        <select value={p.filter} onChange={(e) => p.setFilter(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-surface px-2 py-1.5 text-sm text-ink">
           <option value="">All MSOs</option>
           {p.msoOptions.map((m) => (
             <option key={m} value={m}>{m}</option>
@@ -71,52 +71,9 @@ export function EventsPanel(p: PanelProps) {
               {dayOfWeek(d)} · {fmtDate(d)}
             </h3>
             <ul className="space-y-2">
-              {list.map((e) => {
-                const on = p.interested.has(e.id);
-                const db = p.doubleBooked[e.id];
-                const ov = p.overlaps[e.id];
-                return (
-                  <li key={e.id} className={`rounded-2xl border p-3 transition ${on ? (ov ? "border-clash/70 bg-clash/10" : "border-gold/60 bg-gold/[0.07]") : "border-white/10 bg-navy/40"}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <button onClick={() => p.onOpen(e)} className="min-w-0 text-left">
-                        <div className="font-semibold leading-snug hover:underline">{e.title}</div>
-                        <div className="mt-0.5 text-xs text-muted">
-                          <span className="text-sky">{e.mso}</span>
-                          {e.location && <> · {e.location}</>}
-                        </div>
-                      </button>
-                      <StarButton on={on} onClick={() => p.toggle(e.id)} />
-                    </div>
-                    <div className="mt-1.5 text-xs">
-                      <EventTime e={e} />
-                    </div>
-                    {(db || ov) && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {db && (
-                          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
-                            Double-booked with {db.join(", ")}
-                          </span>
-                        )}
-                        {ov && (
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${on ? "bg-clash/20 text-[#FFB3B3]" : "bg-white/5 text-muted"}`}>
-                            Overlaps {ov.join(", ")}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {(e.flyerUrl || on) && (
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                        {e.flyerUrl && (
-                          <a href={e.flyerUrl} target="_blank" rel="noreferrer" className="text-sky underline">View flyer</a>
-                        )}
-                        {on && (
-                          <a href={googleCalendarUrl(e)} target="_blank" rel="noreferrer" className="text-sky underline">Add to Google Calendar</a>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
+              {list.map((e) => (
+                <EventCard key={e.id} e={e} on={p.interested.has(e.id)} toggle={() => p.toggle(e.id)} db={p.doubleBooked[e.id]} ov={p.overlaps[e.id]} onOpen={() => p.onOpen(e)} />
+              ))}
             </ul>
           </div>
         ))}
@@ -130,5 +87,38 @@ export function EventsPanel(p: PanelProps) {
         Download interested events (.ics)
       </button>
     </section>
+  );
+}
+
+export function EventCard({ e, on, toggle, db, ov, onOpen, showDate }: { e: MsoEvent; on: boolean; toggle: () => void; db?: string[]; ov?: string[]; onOpen: () => void; showDate?: boolean }) {
+  return (
+    <li className={`rounded-2xl border p-3 transition ${on ? (ov ? "border-clash/70 bg-clash/10" : "border-gold/60 bg-gold/[0.07]") : "border-white/10 bg-surface/40"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={onOpen} className="min-w-0 text-left">
+          <div className="font-semibold leading-snug hover:underline">{e.title}</div>
+          <div className="mt-0.5 text-xs text-muted">
+            <span className="text-sky">{e.mso}</span>
+            {e.location && <> · {e.location}</>}
+          </div>
+        </button>
+        <StarButton on={on} onClick={toggle} />
+      </div>
+      <div className="mt-1.5 text-xs">
+        {showDate && <span className="mr-1.5 font-semibold">{dayOfWeek(e.date)} {fmtDate(e.date)} ·</span>}
+        <EventTime e={e} />
+      </div>
+      {(db || ov) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {db && <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">Double-booked with {db.join(", ")}</span>}
+          {ov && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${on ? "bg-clash/20 text-[#FFB3B3]" : "bg-white/5 text-muted"}`}>Overlaps {ov.join(", ")}</span>}
+        </div>
+      )}
+      {(e.flyerUrl || on) && (
+        <div className="mt-2 flex flex-wrap gap-3 text-xs">
+          {e.flyerUrl && <a href={e.flyerUrl} target="_blank" rel="noreferrer" className="text-sky underline">View flyer</a>}
+          {on && <a href={googleCalendarUrl(e)} target="_blank" rel="noreferrer" className="text-sky underline">Add to Google Calendar</a>}
+        </div>
+      )}
+    </li>
   );
 }

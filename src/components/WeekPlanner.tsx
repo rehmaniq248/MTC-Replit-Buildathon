@@ -1,40 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { SAMPLE_EVENTS } from "./data/sample";
-import { getPrayerWindows, getJummahSessions } from "./engine/conflicts";
-import { analyzeDay, doubleBookings, eventBlock, type DayAnalysis } from "./engine/schedule";
-import { FIRST_WEEK, LAST_WEEK, TZ, clampWeek, todayLA, toMin, weekDates, weekIndexFor, weekLabel, weekRangeLabel } from "./engine/time";
-import type { Block, DayWindows, MsoEvent } from "./engine/types";
-import { useAppState, resetDemo } from "./lib/store";
-import { usePrayerTimes } from "./lib/usePrayerTimes";
-import { buildAccommodationEmail } from "./lib/email";
-import { downloadIcs } from "./lib/calendar";
-import { WeekGrid } from "./components/WeekGrid";
-import { EventsPanel } from "./components/EventsPanel";
-import { ClassSheet, CommitmentSheet, EmailModal, EventSheet, SettingsModal } from "./components/Sheets";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { SAMPLE_EVENTS } from "../data/sample";
+import { getJummahSessions } from "../engine/conflicts";
+import { doubleBookings, eventBlock } from "../engine/schedule";
+import { FIRST_WEEK, LAST_WEEK, clampWeek, weekLabel, weekRangeLabel } from "../engine/time";
+import type { Block } from "../engine/types";
+import { useStore } from "../lib/store";
+import { buildAccommodationEmail } from "../lib/email";
+import { downloadIcs } from "../lib/calendar";
+import { todayWeekIndex, useNow, useWeekAnalysis } from "../lib/useWeek";
+import { WeekGrid } from "./WeekGrid";
+import { EventsPanel } from "./EventsPanel";
+import { ClassSheet, CommitmentSheet, EmailModal, EventSheet } from "./Sheets";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 type Selected = { kind: "block"; block: Block } | { kind: "event"; id: string } | null;
+export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
-const nowMinutesLA = () => toMin(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()));
-const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
-
-export default function Home() {
-  const { state, update, toggleInterested, updateClass, updateCommitment, addCommitment, removeCommitment } = useAppState();
-  const today = todayLA();
-  const todayWeek = clampWeek(weekIndexFor(today));
+export function WeekPlanner({ sidebarTop }: { sidebarTop?: ReactNode }) {
+  const { state, update, toggleInterested, updateClass, updateCommitment, removeCommitment } = useStore();
+  const now = useNow();
+  const todayWeek = todayWeekIndex();
   const [[week, dir], setWeekDir] = useState<[number, number]>([todayWeek, 0]);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<Selected>(null);
   const [emailFor, setEmailFor] = useState<{ classId: string; date: string } | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [nowMin, setNowMin] = useState(nowMinutesLA);
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    const t = setInterval(() => setNowMin(nowMinutesLA()), 60000);
-    return () => clearInterval(t);
-  }, []);
 
   const go = useCallback((target: number) => {
     setWeekDir(([w]) => {
@@ -45,10 +36,10 @@ export default function Home() {
   const prev = useCallback(() => setWeekDir(([w]) => (w > FIRST_WEEK ? [w - 1, -1] : [w, 0])), []);
   const next = useCallback(() => setWeekDir(([w]) => (w < LAST_WEEK ? [w + 1, 1] : [w, 0])), []);
 
-  const anyModal = !!selected || !!emailFor || settingsOpen;
+  const anyModal = !!selected || !!emailFor;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (anyModal) return;
+      if (anyModal || document.querySelector('[role="dialog"]')) return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (e.key === "ArrowLeft") prev();
@@ -59,27 +50,7 @@ export default function Home() {
   }, [anyModal, prev, next]);
 
   const touch = useRef<{ x: number; y: number } | null>(null);
-
-  const dates = useMemo(() => weekDates(week), [week]);
-  // prefetch neighbours' months too so sliding feels instant
-  const fetchDates = useMemo(() => [...dates, ...weekDates(clampWeek(week - 1)), ...weekDates(clampWeek(week + 1))], [dates, week]);
-  const { days: prayerDays, source } = usePrayerTimes(fetchDates);
-
-  const interested = useMemo(() => new Set(state.interested), [state.interested]);
-  const windows = useMemo(() => {
-    const out: Record<string, DayWindows | undefined> = {};
-    for (const d of dates) {
-      const t = prayerDays[d];
-      out[d] = t ? getPrayerWindows(d, t, state.jummah) : undefined;
-    }
-    return out;
-  }, [dates, prayerDays, state.jummah]);
-
-  const analyses = useMemo(() => {
-    const out: Record<string, DayAnalysis> = {};
-    for (const d of dates) out[d] = analyzeDay(d, state.classes, state.commitments, SAMPLE_EVENTS, interested, windows[d] ?? null);
-    return out;
-  }, [dates, state.classes, state.commitments, interested, windows]);
+  const { dates, windows, analyses, source, interested, prayerWarnings } = useWeekAnalysis(week, true);
 
   const db = useMemo(() => doubleBookings(SAMPLE_EVENTS), []);
   const weekEventsAll = useMemo(() => SAMPLE_EVENTS.filter((e) => dates.includes(e.date)), [dates]);
@@ -87,7 +58,6 @@ export default function Home() {
   const msoOptions = useMemo(() => Array.from(new Set(SAMPLE_EVENTS.map((e) => e.mso))).sort(), []);
   const overlaps = useMemo(() => Object.assign({}, ...dates.map((d) => analyses[d].eventOverlaps)) as Record<string, string[]>, [dates, analyses]);
 
-  // Interested events that collide with the schedule or another interested event
   const interestedClash = useMemo(() => {
     const out: Record<string, string[]> = {};
     const mine = weekEventsAll.filter((e) => interested.has(e.id));
@@ -105,13 +75,8 @@ export default function Home() {
     return out;
   }, [weekEventsAll, interested, overlaps]);
 
-  const summary = useMemo(() => {
-    const selectedCount = weekEventsAll.filter((e) => interested.has(e.id)).length;
-    const conflicts = Object.keys(interestedClash).length;
-    let warnings = 0;
-    for (const d of dates) for (const b of analyses[d].schedule) if ((analyses[d].results[b.id]?.level ?? "none") !== "none") warnings++;
-    return { selectedCount, conflicts, warnings };
-  }, [weekEventsAll, interested, interestedClash, dates, analyses]);
+  const selectedCount = weekEventsAll.filter((e) => interested.has(e.id)).length;
+  const conflicts = Object.keys(interestedClash).length;
 
   const selectedEvent = selected?.kind === "event" ? SAMPLE_EVENTS.find((e) => e.id === selected.id) : undefined;
   const selBlock = selected?.kind === "block" ? selected.block : undefined;
@@ -133,49 +98,16 @@ export default function Home() {
     exit: (d: number) => ({ x: reduce || d === 0 ? 0 : d > 0 ? "-100%" : "100%", opacity: reduce ? 1 : 0.4 }),
   };
 
-  const summaryText = [
-    summary.selectedCount ? `${plural(summary.selectedCount, "event")} selected` : "No events selected yet",
-    plural(summary.conflicts, "conflict"),
-    `${plural(summary.warnings, "prayer warning")} this week`,
-  ];
-
   return (
-    <div className="min-h-screen pb-10">
-      {/* Header */}
-      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pt-5">
-        <div className="flex items-baseline gap-3">
-          <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
-            MSO <span className="text-gold">Week</span>
-          </h1>
-          <span className="hidden text-sm text-muted md:inline">Classes, prayers and every MSO event at UC San Diego</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setSettingsOpen(true)} className="rounded-full border border-white/15 px-3 py-1.5 text-sm font-semibold hover:bg-white/5">Settings</button>
-          <button onClick={() => { if (window.confirm("Reset demo? This clears your Interested events, edits and name.")) resetDemo(); }} className="rounded-full px-3 py-1.5 text-sm text-muted hover:text-ink">
-            Reset demo
-          </button>
-        </div>
-      </header>
-
-      {/* Summary */}
-      <div className="mx-auto mt-3 max-w-7xl px-4" aria-live="polite">
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-          <span className={summary.selectedCount ? "text-gold" : "text-muted"}>{summaryText[0]}</span>
-          <span className="text-white/20">·</span>
-          <span className={summary.conflicts ? "font-semibold text-clash" : "text-muted"}>{summaryText[1]}</span>
-          <span className="text-white/20">·</span>
-          <span className={summary.warnings ? "text-amber-300" : "text-muted"}>{summaryText[2]}</span>
-        </p>
-      </div>
-
+    <div>
       {/* Week nav */}
-      <nav className="sticky top-0 z-30 mt-3 border-y border-white/5 bg-navy/90 backdrop-blur" aria-label="Week navigation">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2">
+      <nav className="sticky top-0 z-30 rounded-2xl border border-white/10 bg-surface/85 backdrop-blur-xl" aria-label="Week navigation">
+        <div className="flex items-center gap-2 px-2 py-2 sm:px-3">
           <button onClick={prev} disabled={week <= FIRST_WEEK} className="rounded-full bg-card px-3 py-1.5 text-sm font-semibold hover:bg-card2 disabled:cursor-not-allowed disabled:opacity-35">
             ‹ <span className="hidden sm:inline">Prev week</span>
           </button>
           <div className="min-w-0 flex-1 text-center">
-            <div className="truncate font-display text-base font-semibold sm:text-lg">{weekLabel(week)}</div>
+            <div className="week-label truncate font-display text-base font-semibold sm:text-lg">{weekLabel(week)}</div>
             <div className="font-mono text-[11px] text-muted sm:text-xs">{weekRangeLabel(week)}</div>
           </div>
           <button onClick={next} disabled={week >= LAST_WEEK} className="rounded-full bg-card px-3 py-1.5 text-sm font-semibold hover:bg-card2 disabled:cursor-not-allowed disabled:opacity-35">
@@ -187,11 +119,20 @@ export default function Home() {
         </div>
       </nav>
 
-      <main className="mx-auto mt-4 grid max-w-7xl gap-4 px-2 sm:px-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="min-w-0 rounded-3xl bg-card/60 p-2 sm:p-3" aria-label="Week calendar">
+      {/* Summary */}
+      <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 px-1 text-sm" aria-live="polite">
+        <span className={selectedCount ? "text-gold" : "text-muted"}>{selectedCount ? `${plural(selectedCount, "event")} selected` : "No events selected yet"}</span>
+        <span className="text-white/20">·</span>
+        <span className={conflicts ? "font-semibold text-clash" : "text-muted"}>{plural(conflicts, "conflict")}</span>
+        <span className="text-white/20">·</span>
+        <span className={prayerWarnings ? "text-amber-300" : "text-muted"}>{plural(prayerWarnings, "prayer warning")} this week</span>
+      </p>
+
+      <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="min-w-0 rounded-3xl border border-white/10 bg-card/60 p-2 sm:p-3" aria-label="Week calendar">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
             <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input type="checkbox" className="h-4 w-4 accent-[#7EE0B5]" checked={state.showPrayers} onChange={(e) => update({ showPrayers: e.target.checked })} />
+              <input type="checkbox" className="h-4 w-4 accent-[#00C6D7]" checked={state.showPrayers} onChange={(e) => update({ showPrayers: e.target.checked })} />
               Show prayer times
             </label>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
@@ -225,8 +166,8 @@ export default function Home() {
                 <ErrorBoundary label="the calendar">
                   <WeekGrid
                     dates={dates}
-                    today={today}
-                    nowMin={nowMin}
+                    today={now.date}
+                    nowMin={now.min}
                     analyses={analyses}
                     windows={windows}
                     events={weekEventsAll}
@@ -241,12 +182,11 @@ export default function Home() {
               </motion.div>
             </AnimatePresence>
           </div>
-          {(week === 0 || week === LAST_WEEK) && (
-            <p className="mt-2 px-1 text-xs text-muted">Classes appear in Weeks 1–10.</p>
-          )}
+          {(week === 0 || week === LAST_WEEK) && <p className="mt-2 px-1 text-xs text-muted">Classes appear in Weeks 1–10.</p>}
         </section>
 
-        <aside className="min-w-0">
+        <aside className="min-w-0 space-y-4">
+          {sidebarTop}
           <ErrorBoundary label="the events list">
             <EventsPanel
               dates={dates}
@@ -264,12 +204,7 @@ export default function Home() {
             />
           </ErrorBoundary>
         </aside>
-      </main>
-
-      <footer className="mx-auto mt-8 max-w-7xl px-4 text-xs leading-relaxed text-muted">
-        Demo data from the MSA Avengers calendar. Some times are estimated. Live event updates, calendar-link import and Ramadan mode are coming soon.
-        <span className="ml-2"><a href="#/debug" className="underline hover:text-ink">Engine debug</a></span>
-      </footer>
+      </div>
 
       {selectedEvent && (
         <EventSheet e={selectedEvent} on={interested.has(selectedEvent.id)} toggle={() => toggleInterested(selectedEvent.id)} db={db[selectedEvent.id]} ov={overlaps[selectedEvent.id]} onClose={() => setSelected(null)} />
@@ -283,10 +218,6 @@ export default function Home() {
           onRemove={() => { removeCommitment(selCommit.id); setSelected(null); }} />
       )}
       {emailDraft && <EmailModal draft={emailDraft} onClose={() => setEmailFor(null)} />}
-      {emailFor && !emailDraft && <SettingsMissing onClose={() => setEmailFor(null)} />}
-      {settingsOpen && (
-        <SettingsModal name={state.name} jummah={state.jummah} onClose={() => setSettingsOpen(false)} onSave={(name, jummah) => update({ name, jummah })} onAddCommitment={addCommitment} />
-      )}
     </div>
   );
 }
@@ -299,14 +230,3 @@ function Legend({ c, t }: { c: string; t: string }) {
     </span>
   );
 }
-
-function SettingsMissing({ onClose }: { onClose: () => void }) {
-  return (
-    <div role="alert" className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-card px-4 py-3 text-sm shadow-xl">
-      Prayer times are still loading. Try again in a moment.
-      <button onClick={onClose} className="ml-3 font-semibold text-gold">OK</button>
-    </div>
-  );
-}
-
-

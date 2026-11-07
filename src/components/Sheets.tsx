@@ -7,7 +7,7 @@ import { EventTime, StarButton } from "./EventsPanel";
 import { googleCalendarUrl } from "../lib/calendar";
 import { gmailUrl, mailtoUrl, type EmailDraft } from "../lib/email";
 
-const input = "w-full rounded-lg border border-white/10 bg-navy px-3 py-2 text-sm text-ink placeholder:text-muted/60";
+const input = "w-full rounded-lg border border-white/10 bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/60";
 const label = "mb-1 block text-xs font-semibold text-muted";
 
 function ConflictNote({ r }: { r?: ConflictResult }) {

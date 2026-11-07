@@ -54,7 +54,7 @@ function Ribbon({ day }: { day: DayWindows }) {
   );
 }
 
-const badgeStyle = { tight: "bg-amber-400 text-navy", conflict: "bg-clash text-white" } as const;
+const badgeStyle = { tight: "bg-amber-400 text-navy", conflict: "bg-clash text-snow" } as const;
 
 function Badge({ r }: { r?: ConflictResult }) {
   if (!r || r.level === "none") return null;
@@ -121,7 +121,7 @@ export function WeekGrid(p: GridProps) {
           <div
             key={d}
             className={`relative min-w-0 border-l border-white/5 ${d === p.today ? "bg-white/[0.025]" : ""}`}
-            style={{ height: HOURS * HOUR_PX, backgroundImage: "linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: `100% ${HOUR_PX}px` }}
+            style={{ height: HOURS * HOUR_PX, backgroundImage: "linear-gradient(to bottom, rgb(var(--c-hi) / 0.08) 1px, transparent 1px)", backgroundSize: `100% ${HOUR_PX}px` }}
           >
             {p.showPrayers && day && <Ribbon day={day} />}
             {d === p.today && p.nowMin > GRID_START && p.nowMin < GRID_END && (
@@ -140,11 +140,11 @@ export function WeekGrid(p: GridProps) {
               const clash = b.kind === "event" ? p.interestedClash[b.id] : undefined;
               const tone =
                 b.kind === "class"
-                  ? "bg-[#1E4A6E] border-sky text-ink"
+                  ? "bg-[#1E4A6E] border-sky text-[#F2F0E9]"
                   : b.kind === "commitment"
-                    ? "bg-[#3A3466] border-shift text-ink"
+                    ? "bg-[#3A3466] border-shift text-[#F2F0E9]"
                     : clash
-                      ? "bg-clash/90 border-clash text-white"
+                      ? "bg-clash/90 border-clash text-snow"
                       : "bg-gold border-gold text-navy";
               const showEmail = b.kind === "class" && r && r.level !== "none";
               return (
@@ -177,7 +177,7 @@ export function WeekGrid(p: GridProps) {
                           p.onEmail(b.sourceId!, b.date);
                         }}
                         className={`mt-0.5 hidden max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold sm:block ${
-                          r!.level === "conflict" ? "bg-gold text-navy" : "border border-white/30 text-ink"
+                          r!.level === "conflict" ? "bg-gold text-navy" : "border border-snow/30 text-[#F2F0E9]"
                         }`}
                       >
                         {r!.level === "conflict" ? "Email for prayer accommodation" : "Email anyway"}

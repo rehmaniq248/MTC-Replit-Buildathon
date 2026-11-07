@@ -1,6 +1,14 @@
-# MSO Week
+# MSA ILM+
 
-See your week, your prayer times and every MSO event at UC San Diego in one place. Mark events "Interested" to see clashes with classes, shifts and prayers right away. If a class overlaps a prayer, MSO Week drafts an accommodation email to your professor. It never sends anything for you.
+Your classes, prayer times, tasks, reminders and every MSO event at UC San Diego, in one place. Mark events "Interested" to see clashes with classes, shifts and prayers right away. If a class overlaps a prayer, MSA ILM+ drafts an accommodation email to your professor. It never sends anything for you.
+
+## Pages
+
+- **Home:** today's prayer timeline, plus live tiles for Classes, Reminders, Tasks and Events.
+- **Dashboard:** everything on one screen. Today's prayers, the sliding week calendar, tasks, reminders and this week's MSO events.
+- **Classes:** each class's prayer-conflict status, professor details and the accommodation email.
+- **Reminders and Tasks:** add, check off and delete items. They're saved in your browser.
+- **Events:** every MSO event this quarter by week, with MSO filters, double-booking badges and calendar export.
 
 Built for the "Deen & Dunya: Reimagining the Muslim Student Experience" track. Frontend only: no backend, no accounts, no analytics. Your choices stay in your browser (localStorage).
 

@@ -9,7 +9,7 @@ export function googleCalendarUrl(e: MsoEvent): string {
   const dates = timed(e)
     ? `${compactDate(e.date)}T${compactTime(e.start!)}/${compactDate(e.date)}T${compactTime(e.end!)}`
     : `${compactDate(e.date)}/${compactDate(addDays(e.date, 1))}`;
-  const p = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates, ctz: "America/Los_Angeles", details: `${e.mso} event (from MSO Week)` });
+  const p = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates, ctz: "America/Los_Angeles", details: `${e.mso} event (from MSA ILM+)` });
   if (e.location) p.set("location", e.location);
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
@@ -18,7 +18,7 @@ const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replac
 
 export function buildIcs(events: MsoEvent[]): string {
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MSO Week//EN", "CALSCALE:GREGORIAN"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//MSA ILM+//EN", "CALSCALE:GREGORIAN"];
   for (const e of events) {
     lines.push("BEGIN:VEVENT", `UID:${e.id}-${e.date}@msoweek`, `DTSTAMP:${stamp}`, `SUMMARY:${esc(e.title)}`);
     if (timed(e)) {

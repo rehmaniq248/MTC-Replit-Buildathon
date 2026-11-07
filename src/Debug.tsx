@@ -17,7 +17,7 @@ export default function Debug() {
 
   return (
     <div className="mx-auto max-w-5xl p-4 text-sm">
-      <a href="#/" className="text-sky underline">← Back to app</a>
+      <a href="#/dashboard" className="text-sky underline">← Back to app</a>
       <h1 className="mt-2 text-2xl font-bold text-gold">Engine debug</h1>
       <p className="text-muted">Prayer source: {source ?? "loading…"}</p>
 
